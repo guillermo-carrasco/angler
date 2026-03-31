@@ -1,0 +1,1352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Angler — Flexibility Tracker</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #111827;
+      color: #e5e7eb;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── Toolbar ─────────────────────────────────────────────────────── */
+    #toolbar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      background: #1f2937;
+      border-bottom: 1px solid #374151;
+      flex-shrink: 0;
+      flex-wrap: wrap;
+    }
+
+    #app-title {
+      font-size: 17px;
+      font-weight: 800;
+      color: #38bdf8;
+      letter-spacing: 2px;
+      margin-right: 6px;
+      flex-shrink: 0;
+    }
+
+    .sep {
+      width: 1px;
+      height: 28px;
+      background: #374151;
+      margin: 0 4px;
+      flex-shrink: 0;
+    }
+
+    button {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: #374151;
+      color: #d1d5db;
+      border: 1px solid #4b5563;
+      border-radius: 7px;
+      padding: 5px 11px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      transition: background 0.12s, border-color 0.12s, color 0.12s;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    button:hover:not(:disabled) { background: #4b5563; border-color: #6b7280; color: #f9fafb; }
+    button:disabled { opacity: 0.35; cursor: default; }
+    button.active {
+      background: #0c4a6e;
+      border-color: #38bdf8;
+      color: #38bdf8;
+    }
+    button.danger:hover:not(:disabled) { background: #7f1d1d; border-color: #ef4444; color: #fca5a5; }
+
+    .tool-icon { font-size: 14px; }
+
+    /* ── Canvas area ─────────────────────────────────────────────────── */
+    #canvas-wrap {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      background: #0d1117;
+    }
+
+    #canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    #drop-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      pointer-events: none;
+    }
+    #drop-overlay.hidden { display: none; }
+    .drop-icon { font-size: 56px; opacity: 0.2; }
+    .drop-title { font-size: 20px; font-weight: 600; color: #6b7280; }
+    .drop-sub { font-size: 14px; color: #4b5563; }
+
+    #drop-active-overlay {
+      position: absolute;
+      inset: 0;
+      border: 3px dashed #38bdf8;
+      background: rgba(56, 189, 248, 0.06);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      font-weight: 700;
+      color: #38bdf8;
+      pointer-events: none;
+    }
+    #drop-active-overlay.visible { display: flex; }
+
+    /* ── Inline text input ───────────────────────────────────────────── */
+    #text-input-wrap {
+      position: absolute;
+      display: none;
+      z-index: 20;
+      transform: translate(-50%, -50%);
+    }
+    #text-input-wrap.visible { display: block; }
+    #text-input {
+      background: #1f2937;
+      color: #fde047;
+      border: 2px solid #fde047;
+      border-radius: 6px;
+      padding: 5px 10px;
+      font-size: 15px;
+      font-weight: 600;
+      outline: none;
+      min-width: 140px;
+      max-width: 300px;
+      width: auto;
+    }
+
+    /* ── Properties panel ───────────────────────────────────────────── */
+    #props-panel {
+      display: none;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+    #props-panel.visible { display: flex; }
+
+    .prop-label {
+      font-size: 11px;
+      color: #9ca3af;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .color-swatch {
+      position: relative;
+      width: 28px;
+      height: 28px;
+      border-radius: 7px;
+      border: 2px solid #6b7280;
+      cursor: pointer;
+      overflow: hidden;
+      flex-shrink: 0;
+      transition: border-color 0.12s, transform 0.1s;
+    }
+    .color-swatch:hover { border-color: #d1d5db; transform: scale(1.1); }
+    .color-swatch input[type="color"] {
+      position: absolute;
+      inset: -6px;
+      width: calc(100% + 12px);
+      height: calc(100% + 12px);
+      opacity: 0;
+      cursor: pointer;
+      border: none;
+      padding: 0;
+    }
+
+    .size-controls {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+    }
+    .size-controls button {
+      width: 26px;
+      height: 26px;
+      padding: 0;
+      font-size: 15px;
+      font-weight: 700;
+      justify-content: center;
+    }
+    #size-display {
+      min-width: 30px;
+      text-align: center;
+      font-size: 13px;
+      font-weight: 600;
+      color: #e5e7eb;
+    }
+
+    /* ── Status bar ──────────────────────────────────────────────────── */
+    #statusbar {
+      background: #1f2937;
+      border-top: 1px solid #374151;
+      padding: 4px 14px;
+      font-size: 12px;
+      color: #6b7280;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    #status-hint { flex: 1; }
+    #status-info { color: #4b5563; font-size: 11px; }
+  </style>
+</head>
+<body>
+
+<!-- ── Toolbar ─────────────────────────────────────────────────────────── -->
+<div id="toolbar">
+  <span id="app-title">ANGLER</span>
+
+  <button id="btn-load" title="Load image (or drag & drop)">
+    <span class="tool-icon">📂</span> Load Image
+  </button>
+  <input id="file-input" type="file" accept="image/*" style="display:none">
+
+  <div class="sep"></div>
+
+  <button id="btn-select" class="tool-btn active" data-tool="select" title="Select / Move / Rotate  [V]">
+    <span class="tool-icon">↖</span> Select
+  </button>
+  <button id="btn-angle" class="tool-btn" data-tool="angle" title="Measure angle (3 clicks)  [A]">
+    <span class="tool-icon">📐</span> Angle
+  </button>
+  <button id="btn-text" class="tool-btn" data-tool="text" title="Add text label  [T]">
+    <span class="tool-icon">T</span> Text
+  </button>
+
+  <div class="sep"></div>
+
+  <button id="btn-undo" disabled title="Undo  [Ctrl+Z]">
+    <span class="tool-icon">↩</span> Undo
+  </button>
+  <button id="btn-redo" disabled title="Redo  [Ctrl+Shift+Z]">
+    <span class="tool-icon">↪</span> Redo
+  </button>
+
+  <div class="sep"></div>
+
+  <button id="btn-delete" class="danger" disabled title="Delete selected  [Del]">
+    <span class="tool-icon">🗑</span> Delete
+  </button>
+  <button id="btn-clear" class="danger" disabled title="Clear all annotations">
+    <span class="tool-icon">✕</span> Clear All
+  </button>
+
+  <div class="sep"></div>
+
+  <button id="btn-export" disabled title="Export annotated image  [Ctrl+E]">
+    <span class="tool-icon">⬇</span> Export PNG
+  </button>
+
+  <!-- Properties panel — shown when an annotation is selected -->
+  <div class="sep" id="props-sep" style="display:none"></div>
+  <div id="props-panel">
+    <span class="prop-label">Color</span>
+    <label class="color-swatch" id="color-swatch" title="Change annotation color">
+      <input type="color" id="prop-color" value="#38bdf8">
+    </label>
+    <span class="sep" id="size-sep" style="display:none"></span>
+    <span class="prop-label" id="size-label" style="display:none">Size</span>
+    <div class="size-controls" id="size-controls" style="display:none">
+      <button id="btn-size-down" title="Decrease font size (−2)">−</button>
+      <span id="size-display">16</span>
+      <button id="btn-size-up" title="Increase font size (+2)">+</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Canvas ──────────────────────────────────────────────────────────── -->
+<div id="canvas-wrap">
+  <canvas id="canvas"></canvas>
+
+  <div id="drop-overlay">
+    <div class="drop-icon">📷</div>
+    <div class="drop-title">Drop an image here</div>
+    <div class="drop-sub">or click <strong>Load Image</strong> above &nbsp;·&nbsp; JPG, PNG, WebP</div>
+  </div>
+
+  <div id="drop-active-overlay">Drop to load image</div>
+
+  <div id="text-input-wrap">
+    <input id="text-input" type="text" placeholder="Type label…" maxlength="120" autocomplete="off" spellcheck="false">
+  </div>
+</div>
+
+<!-- ── Status bar ──────────────────────────────────────────────────────── -->
+<div id="statusbar">
+  <span id="status-hint">Load an image to get started</span>
+  <span id="status-info"></span>
+</div>
+
+<script>
+'use strict';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Polyfill: CanvasRenderingContext2D.roundRect (Safari < 15.4)
+// ─────────────────────────────────────────────────────────────────────────────
+if (!CanvasRenderingContext2D.prototype.roundRect) {
+  CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
+    r = Math.min(r, w / 2, h / 2);
+    this.beginPath();
+    this.moveTo(x + r, y);
+    this.arcTo(x + w, y, x + w, y + h, r);
+    this.arcTo(x + w, y + h, x, y + h, r);
+    this.arcTo(x, y + h, x, y, r);
+    this.arcTo(x, y, x + w, y, r);
+    this.closePath();
+    return this;
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Constants
+// ─────────────────────────────────────────────────────────────────────────────
+const PT_HIT_R   = 10;  // px — point hit radius
+const BODY_PAD   = 8;   // px — extra padding around text bounding box for hits
+const ROT_OFFSET = 44;  // px — rotate handle distance from annotation center
+const ARC_R      = 36;  // px — arc radius for angle display
+const DOT_R      = 5;   // px — circle dot radius on angle annotation
+
+const COLOR_ANGLE = '#38bdf8';   // cyan-blue
+const COLOR_TEXT  = '#fde047';   // yellow
+const COLOR_SEL   = '#ffffff';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// State
+// ─────────────────────────────────────────────────────────────────────────────
+const S = {
+  imageEl:     null,
+  imgW:        0,
+  imgH:        0,
+  tool:        'select',
+  annotations: [],   // array of annotation objects
+  selected:    null, // index | null
+  history:     [],   // undo stack  [annotations snapshot, ...]
+  future:      [],   // redo stack
+  pending:     [],   // angle tool: collected image-space points so far
+  mouse:       { x: 0, y: 0 }, // current mouse in CANVAS px
+
+  drag: null,
+  // drag = {
+  //   type:   'move-anno' | 'move-point' | 'rotate',
+  //   idx:    annotation index,
+  //   ptIdx:  point index (move-point only),
+  //   startMouse: {x,y} canvas px,
+  //   startAnnoSnapshot: deep clone of annotation,
+  //   // rotate only:
+  //   startAngle: number (rad from center to mouse at drag start),
+  //   startRot:   number (rotation at drag start, degrees),
+  //   center:     {x,y} canvas px,
+  // }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Canvas + transform
+// ─────────────────────────────────────────────────────────────────────────────
+const canvas = document.getElementById('canvas');
+const ctx    = canvas.getContext('2d');
+let T = { scale: 1, ox: 0, oy: 0 }; // display transform
+
+function updateTransform() {
+  if (!S.imageEl) { T = { scale: 1, ox: 0, oy: 0 }; return; }
+  const pad  = 24;
+  const aw   = canvas.width  - pad * 2;
+  const ah   = canvas.height - pad * 2;
+  const sc   = Math.min(aw / S.imgW, ah / S.imgH);
+  T.scale = sc;
+  T.ox    = (canvas.width  - S.imgW * sc) / 2;
+  T.oy    = (canvas.height - S.imgH * sc) / 2;
+}
+
+/** Image-space → canvas-space */
+function tc(p) { return { x: p.x * T.scale + T.ox, y: p.y * T.scale + T.oy }; }
+
+/** Canvas-space → image-space */
+function ti(p) { return { x: (p.x - T.ox) / T.scale, y: (p.y - T.oy) / T.scale }; }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Resize
+// ─────────────────────────────────────────────────────────────────────────────
+function resizeCanvas() {
+  const wrap = canvas.parentElement.getBoundingClientRect();
+  canvas.width  = wrap.width;
+  canvas.height = wrap.height;
+  updateTransform();
+  render();
+}
+new ResizeObserver(resizeCanvas).observe(canvas.parentElement);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// History
+// ─────────────────────────────────────────────────────────────────────────────
+function snapshot() { return JSON.parse(JSON.stringify(S.annotations)); }
+
+function pushHistory() {
+  S.history.push(snapshot());
+  S.future = [];
+  refreshButtons();
+}
+
+function undo() {
+  if (!S.history.length) return;
+  S.future.push(snapshot());
+  S.annotations = S.history.pop();
+  S.selected = null;
+  refreshButtons();
+  render();
+}
+
+function redo() {
+  if (!S.future.length) return;
+  S.history.push(snapshot());
+  S.annotations = S.future.pop();
+  S.selected = null;
+  refreshButtons();
+  render();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Render
+// ─────────────────────────────────────────────────────────────────────────────
+function render() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  if (S.imageEl) {
+    ctx.drawImage(S.imageEl, T.ox, T.oy, S.imgW * T.scale, S.imgH * T.scale);
+  }
+
+  // Draw all annotations
+  S.annotations.forEach((a, i) => drawAnnotation(a, i === S.selected));
+
+  // Draw pending angle preview
+  drawPending();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Annotation rendering
+// ─────────────────────────────────────────────────────────────────────────────
+
+function drawAnnotation(a, selected) {
+  if (a.type === 'angle') drawAngle(a, selected);
+  else if (a.type === 'text') drawText(a, selected);
+}
+
+// ── Angle ─────────────────────────────────────────────────────────────────
+
+function drawAngle(a, selected) {
+  const [cA, cB, cC] = a.points.map(tc); // B = vertex
+  const color = a.color || COLOR_ANGLE;
+
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.fillStyle   = color;
+  ctx.lineWidth   = selected ? 2.5 : 2;
+  ctx.lineCap     = 'round';
+
+  // Arms
+  ctx.beginPath();
+  ctx.moveTo(cA.x, cA.y); ctx.lineTo(cB.x, cB.y);
+  ctx.moveTo(cC.x, cC.y); ctx.lineTo(cB.x, cB.y);
+  ctx.stroke();
+
+  // Arc at vertex
+  const angA = Math.atan2(cA.y - cB.y, cA.x - cB.x);
+  const angC = Math.atan2(cC.y - cB.y, cC.x - cB.x);
+  let diff = angC - angA;
+  while (diff >  Math.PI) diff -= 2 * Math.PI;
+  while (diff < -Math.PI) diff += 2 * Math.PI;
+  ctx.beginPath();
+  ctx.arc(cB.x, cB.y, ARC_R, angA, angC, diff < 0);
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // Dots
+  [[cA, DOT_R], [cB, DOT_R + 1], [cC, DOT_R]].forEach(([p, r]) => {
+    ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+    ctx.fill();
+    if (selected) {
+      ctx.strokeStyle = COLOR_SEL; ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.strokeStyle = color;
+    }
+  });
+
+  // Degree label
+  const deg  = angleBetween(a.points[0], a.points[1], a.points[2]);
+  const text = deg.toFixed(1) + '°';
+  const bisA = bisectorAngle(cA, cB, cC);
+  const lDist = ARC_R + 22;
+  const lx    = cB.x + Math.cos(bisA) * lDist;
+  const ly    = cB.y + Math.sin(bisA) * lDist;
+
+  const { lx: fx, ly: fy } = applyLabelOffset(lx, ly, a.labelOffset || { x: 0, y: 0 });
+  const rot = (a.labelRotation || 0) * Math.PI / 180;
+
+  ctx.save();
+  ctx.translate(fx, fy);
+  ctx.rotate(rot);
+  ctx.font = 'bold 15px "SF Mono", "Fira Mono", monospace';
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'middle';
+  const tw = ctx.measureText(text).width + 10;
+  const th = 21;
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.roundRect(-tw / 2, -th / 2, tw, th, 4); ctx.fill();
+  ctx.fillStyle = color;
+  ctx.fillText(text, 0, 0);
+  ctx.restore();
+
+  // Cache label center for hit tests & rotate handle
+  a._lc = { x: fx, y: fy };
+
+  if (selected) drawRotateHandle(fx, fy, rot, color, ROT_OFFSET);
+
+  ctx.restore();
+}
+
+function applyLabelOffset(lx, ly, off) {
+  return { lx: lx + (off.x || 0), ly: ly + (off.y || 0) };
+}
+
+// ── Text ──────────────────────────────────────────────────────────────────
+
+function drawText(a, selected) {
+  const cp    = tc(a.position);
+  const color = a.color || COLOR_TEXT;
+  const rot   = (a.rotation || 0) * Math.PI / 180;
+  const fs    = a.fontSize || 16;
+
+  ctx.save();
+  ctx.translate(cp.x, cp.y);
+  ctx.rotate(rot);
+  ctx.font         = `bold ${fs}px sans-serif`;
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'middle';
+  const tw = ctx.measureText(a.text).width + 14;
+  const th = fs + 10;
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  ctx.roundRect(-tw / 2, -th / 2, tw, th, 5); ctx.fill();
+  if (selected) {
+    ctx.strokeStyle = color; ctx.lineWidth = 1.5;
+    ctx.roundRect(-tw / 2, -th / 2, tw, th, 5); ctx.stroke();
+  }
+  ctx.fillStyle = color;
+  ctx.fillText(a.text, 0, 0);
+  // Cache bounds in unrotated local space
+  a._bounds = { tw, th };
+  ctx.restore();
+
+  a._cp = cp;
+  if (selected) drawRotateHandle(cp.x, cp.y, rot, color, ROT_OFFSET);
+}
+
+// ── Rotate handle ─────────────────────────────────────────────────────────
+
+/**
+ * Draws a circular rotation handle at distance `dist` above the annotation
+ * center, rotated by `rot` radians.
+ */
+function drawRotateHandle(cx, cy, rot, color, dist) {
+  // "above" in local frame is (0, -dist); after rotation:
+  const hx = cx + Math.sin(rot) * dist;
+  const hy = cy - Math.cos(rot) * dist;
+
+  ctx.save();
+  // Dashed line
+  ctx.strokeStyle   = color;
+  ctx.lineWidth     = 1;
+  ctx.setLineDash([3, 3]);
+  ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(hx, hy); ctx.stroke();
+  ctx.setLineDash([]);
+  // Circle
+  ctx.beginPath(); ctx.arc(hx, hy, 9, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(17,24,39,0.85)'; ctx.fill();
+  ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.stroke();
+  // Rotation arrows icon inside
+  ctx.translate(hx, hy);
+  ctx.strokeStyle = color; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.arc(0, 0, 4.5, -0.8, 2.3); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(3.8, 3.2); ctx.lineTo(5.5, 0.2); ctx.lineTo(1.2, 0.8); ctx.stroke();
+  ctx.restore();
+}
+
+// ── Pending angle preview ─────────────────────────────────────────────────
+
+function drawPending() {
+  if (S.tool !== 'angle' || !S.pending.length) return;
+  const pts  = S.pending.map(tc);
+  const m    = S.mouse;
+
+  ctx.save();
+  ctx.strokeStyle = COLOR_ANGLE;
+  ctx.fillStyle   = COLOR_ANGLE;
+  ctx.lineWidth   = 1.5;
+  ctx.setLineDash([5, 4]);
+  ctx.globalAlpha = 0.75;
+
+  if (pts.length === 1) {
+    ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y); ctx.lineTo(m.x, m.y); ctx.stroke();
+  } else if (pts.length === 2) {
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y); ctx.lineTo(pts[1].x, pts[1].y);
+    ctx.moveTo(pts[1].x, pts[1].y); ctx.lineTo(m.x, m.y);
+    ctx.stroke();
+  }
+
+  ctx.setLineDash([]);
+  pts.forEach(p => { ctx.beginPath(); ctx.arc(p.x, p.y, DOT_R, 0, Math.PI * 2); ctx.fill(); });
+  ctx.restore();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Math helpers
+// ─────────────────────────────────────────────────────────────────────────────
+function angleBetween(A, B, C) { // image-space; angle at B
+  const ax = A.x - B.x, ay = A.y - B.y;
+  const cx = C.x - B.x, cy = C.y - B.y;
+  const dot = ax * cx + ay * cy;
+  const m1  = Math.hypot(ax, ay), m2 = Math.hypot(cx, cy);
+  if (!m1 || !m2) return 0;
+  return Math.acos(Math.max(-1, Math.min(1, dot / (m1 * m2)))) * 180 / Math.PI;
+}
+
+function bisectorAngle(cA, cB, cC) { // canvas-space points
+  const lenBA = Math.hypot(cA.x - cB.x, cA.y - cB.y);
+  const lenBC = Math.hypot(cC.x - cB.x, cC.y - cB.y);
+  if (!lenBA || !lenBC) return 0;
+  const ux = (cA.x - cB.x) / lenBA + (cC.x - cB.x) / lenBC;
+  const uy = (cA.y - cB.y) / lenBA + (cC.y - cB.y) / lenBC;
+  return Math.atan2(uy, ux);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Hit testing
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Returns { idx, type: 'rotate' | 'point' | 'label' | 'body', ptIdx? }
+ * or null.  Iterates in reverse so topmost annotation wins.
+ */
+function hitTest(cx, cy) {
+  for (let i = S.annotations.length - 1; i >= 0; i--) {
+    const a = S.annotations[i];
+    const h = hitAnnotation(a, i, cx, cy);
+    if (h) return h;
+  }
+  return null;
+}
+
+function hitAnnotation(a, idx, cx, cy) {
+  if (a.type === 'angle') return hitAngle(a, idx, cx, cy);
+  if (a.type === 'text')  return hitTextAnno(a, idx, cx, cy);
+  return null;
+}
+
+function rotHandlePos(cx, cy, rotDeg) {
+  const rot = rotDeg * Math.PI / 180;
+  return { x: cx + Math.sin(rot) * ROT_OFFSET, y: cy - Math.cos(rot) * ROT_OFFSET };
+}
+
+function hitAngle(a, idx, cx, cy) {
+  // Rotate handle (only when selected)
+  if (S.selected === idx && a._lc) {
+    const h = rotHandlePos(a._lc.x, a._lc.y, a.labelRotation || 0);
+    if (Math.hypot(cx - h.x, cy - h.y) <= 12) return { idx, type: 'rotate' };
+  }
+  // Point circles
+  for (let j = 0; j < 3; j++) {
+    const cp = tc(a.points[j]);
+    if (Math.hypot(cx - cp.x, cy - cp.y) <= PT_HIT_R) return { idx, type: 'point', ptIdx: j };
+  }
+  // Label badge
+  if (a._lc && Math.hypot(cx - a._lc.x, cy - a._lc.y) <= 22) return { idx, type: 'label' };
+  return null;
+}
+
+function hitTextAnno(a, idx, cx, cy) {
+  if (!a._cp) return null;
+  const { x: px, y: py } = a._cp;
+  // Rotate handle (only when selected)
+  if (S.selected === idx) {
+    const h = rotHandlePos(px, py, a.rotation || 0);
+    if (Math.hypot(cx - h.x, cy - h.y) <= 12) return { idx, type: 'rotate' };
+  }
+  // Body (rotated bounding box)
+  if (a._bounds) {
+    const rot = -(a.rotation || 0) * Math.PI / 180;
+    const dx  = cx - px, dy = cy - py;
+    const rx  = dx * Math.cos(rot) - dy * Math.sin(rot);
+    const ry  = dx * Math.sin(rot) + dy * Math.cos(rot);
+    const { tw, th } = a._bounds;
+    if (Math.abs(rx) <= tw / 2 + BODY_PAD && Math.abs(ry) <= th / 2 + BODY_PAD)
+      return { idx, type: 'body' };
+  }
+  return null;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Mouse events
+// ─────────────────────────────────────────────────────────────────────────────
+function canvasMouse(e) {
+  const r = canvas.getBoundingClientRect();
+  return {
+    x: (e.clientX - r.left) * (canvas.width  / r.width),
+    y: (e.clientY - r.top)  * (canvas.height / r.height),
+  };
+}
+
+canvas.addEventListener('mousemove', (e) => {
+  const m = canvasMouse(e);
+  S.mouse = m;
+
+  if (S.drag) {
+    handleDragMove(m);
+    render();
+    return;
+  }
+
+  // Cursor feedback
+  if (S.imageEl && S.tool === 'select') {
+    const h = hitTest(m.x, m.y);
+    canvas.style.cursor = h
+      ? (h.type === 'rotate' ? 'grab' : 'move')
+      : 'default';
+  } else if (S.tool === 'angle') {
+    canvas.style.cursor = 'crosshair';
+  } else if (S.tool === 'text') {
+    canvas.style.cursor = 'text';
+  }
+
+  if (S.tool === 'angle' && S.pending.length) render();
+});
+
+canvas.addEventListener('mousedown', (e) => {
+  if (e.button !== 0 || !S.imageEl) return;
+  const m = canvasMouse(e);
+
+  if (S.tool === 'select')     handleSelectDown(m);
+  else if (S.tool === 'angle') handleAngleClick(m);
+  else if (S.tool === 'text')  { e.preventDefault(); handleTextClick(m); }
+});
+
+canvas.addEventListener('mouseup', () => {
+  if (S.drag) { S.drag = null; }
+});
+
+canvas.addEventListener('mouseleave', () => {
+  if (S.drag) S.drag = null;
+  if (S.tool === 'angle' && S.pending.length) render();
+});
+
+canvas.addEventListener('dblclick', (e) => {
+  if (S.tool !== 'select') return;
+  const m = canvasMouse(e);
+  const h = hitTest(m.x, m.y);
+  if (h && S.annotations[h.idx].type === 'text') startEditText(h.idx);
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Select tool interactions
+// ─────────────────────────────────────────────────────────────────────────────
+function handleSelectDown(m) {
+  const h = hitTest(m.x, m.y);
+
+  if (!h) {
+    S.selected = null;
+    refreshButtons();
+    render();
+    return;
+  }
+
+  S.selected = h.idx;
+  refreshButtons();
+
+  const a = S.annotations[h.idx];
+  pushHistory();
+
+  if (h.type === 'rotate') {
+    // Determine center of rotation
+    let cx, cy;
+    if (a.type === 'angle') { cx = a._lc.x; cy = a._lc.y; }
+    else                    { cx = a._cp.x; cy = a._cp.y; }
+    S.drag = {
+      type:       'rotate',
+      idx:        h.idx,
+      startAngle: Math.atan2(m.y - cy, m.x - cx),
+      startRot:   a.type === 'angle' ? (a.labelRotation || 0) : (a.rotation || 0),
+      center:     { x: cx, y: cy },
+    };
+  } else if (h.type === 'point') {
+    S.drag = {
+      type:  'move-point',
+      idx:   h.idx,
+      ptIdx: h.ptIdx,
+      startMouse: { ...m },
+      startPos:   { ...a.points[h.ptIdx] },
+    };
+  } else {
+    // Move whole annotation
+    S.drag = {
+      type:       'move-anno',
+      idx:        h.idx,
+      startMouse: { ...m },
+      startSnap:  JSON.parse(JSON.stringify(a)),
+    };
+  }
+
+  render();
+}
+
+function handleDragMove(m) {
+  const d = S.drag;
+  const a = S.annotations[d.idx];
+
+  if (d.type === 'rotate') {
+    const angle = Math.atan2(m.y - d.center.y, m.x - d.center.x);
+    const delta = (angle - d.startAngle) * 180 / Math.PI;
+    const rot   = d.startRot + delta;
+    if (a.type === 'angle') a.labelRotation = rot;
+    else                    a.rotation      = rot;
+
+  } else if (d.type === 'move-point') {
+    const dxi = (m.x - d.startMouse.x) / T.scale;
+    const dyi = (m.y - d.startMouse.y) / T.scale;
+    a.points[d.ptIdx] = { x: d.startPos.x + dxi, y: d.startPos.y + dyi };
+
+  } else if (d.type === 'move-anno') {
+    const dxi = (m.x - d.startMouse.x) / T.scale;
+    const dyi = (m.y - d.startMouse.y) / T.scale;
+    if (a.type === 'angle') {
+      a.points = d.startSnap.points.map(p => ({ x: p.x + dxi, y: p.y + dyi }));
+    } else {
+      a.position = { x: d.startSnap.position.x + dxi, y: d.startSnap.position.y + dyi };
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Angle tool
+// ─────────────────────────────────────────────────────────────────────────────
+function handleAngleClick(m) {
+  const ip = ti(m);
+  S.pending.push(ip);
+
+  if (S.pending.length === 3) {
+    pushHistory();
+    const [A, B, C] = S.pending;
+    S.annotations.push({
+      type:  'angle',
+      points: [A, B, C],  // B = vertex (2nd click)
+      color:  COLOR_ANGLE,
+      labelRotation: 0,
+      labelOffset:   { x: 0, y: 0 },
+    });
+    S.selected = S.annotations.length - 1;
+    S.pending  = [];
+    refreshButtons();
+  }
+
+  updateStatus();
+  render();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Text tool
+// ─────────────────────────────────────────────────────────────────────────────
+function handleTextClick(m) {
+  openTextInput(m, null, null);
+}
+
+function startEditText(idx) {
+  const a  = S.annotations[idx];
+  const cp = tc(a.position);
+  openTextInput(cp, a.text, idx);
+}
+
+function openTextInput(canvasPos, initialText, editIdx) {
+  const wrap  = document.getElementById('text-input-wrap');
+  const input = document.getElementById('text-input');
+
+  // Position the input overlay in CSS-space over the canvas click
+  const cr = canvas.getBoundingClientRect();
+  const wr = canvas.parentElement.getBoundingClientRect();
+  const scx = cr.width  / canvas.width;
+  const scy = cr.height / canvas.height;
+
+  wrap.style.left = ((canvasPos.x * scx) + (cr.left - wr.left)) + 'px';
+  wrap.style.top  = ((canvasPos.y * scy) + (cr.top  - wr.top))  + 'px';
+  wrap.classList.add('visible');
+
+  input.value = initialText || '';
+  input.focus();
+  input.select();
+
+  function commit(save) {
+    wrap.classList.remove('visible');
+    cleanup();
+    const txt = input.value.trim();
+    if (save && txt) {
+      pushHistory();
+      if (editIdx !== null) {
+        S.annotations[editIdx].text = txt;
+      } else {
+        const ip = ti(canvasPos);
+        S.annotations.push({
+          type:     'text',
+          position: ip,
+          text:     txt,
+          color:    COLOR_TEXT,
+          rotation: 0,
+          fontSize: 16,
+        });
+        S.selected = S.annotations.length - 1;
+        refreshButtons();
+      }
+      render();
+    }
+  }
+
+  function onKey(e) {
+    e.stopPropagation();
+    if (e.key === 'Enter')  commit(true);
+    if (e.key === 'Escape') commit(false);
+  }
+  function onBlur() { setTimeout(() => commit(true), 80); }
+  function cleanup() {
+    input.removeEventListener('keydown', onKey);
+    input.removeEventListener('blur',    onBlur);
+  }
+
+  input.addEventListener('keydown', onKey);
+  // Delay blur listener so the mouseup/click that triggered this doesn't
+  // immediately fire blur and collapse the input before the user types.
+  setTimeout(() => input.addEventListener('blur', onBlur, { once: true }), 200);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Keyboard shortcuts
+// ─────────────────────────────────────────────────────────────────────────────
+document.addEventListener('keydown', (e) => {
+  const tag = document.activeElement.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+
+  if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); return; }
+  if ((e.metaKey || e.ctrlKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); redo(); return; }
+  if ((e.metaKey || e.ctrlKey) && e.key === 'e') { e.preventDefault(); doExport(); return; }
+
+  if (e.key === 'Escape') {
+    S.pending  = [];
+    S.selected = null;
+    refreshButtons();
+    updateStatus();
+    render();
+    return;
+  }
+
+  if (e.key === 'Delete' || e.key === 'Backspace') {
+    deleteSelected(); return;
+  }
+
+  // Tool shortcuts (no modifier)
+  if (!e.metaKey && !e.ctrlKey) {
+    const map = { v: 'select', a: 'angle', t: 'text' };
+    const tool = map[e.key.toLowerCase()];
+    if (tool) setTool(tool);
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tool selection
+// ─────────────────────────────────────────────────────────────────────────────
+function setTool(tool) {
+  S.tool    = tool;
+  S.pending = [];
+  if (tool !== 'select') S.selected = null;
+  document.querySelectorAll('.tool-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.tool === tool);
+  });
+  canvas.style.cursor = tool === 'angle' ? 'crosshair' : tool === 'text' ? 'text' : 'default';
+  refreshButtons();
+  updateStatus();
+  render();
+}
+
+document.querySelectorAll('.tool-btn').forEach(b => {
+  b.addEventListener('click', () => setTool(b.dataset.tool));
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Image loading
+// ─────────────────────────────────────────────────────────────────────────────
+function loadImageFile(file) {
+  if (!file || !file.type.startsWith('image/')) return;
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = () => {
+    S.imageEl     = img;
+    S.imgW        = img.naturalWidth;
+    S.imgH        = img.naturalHeight;
+    S.annotations = [];
+    S.selected    = null;
+    S.history     = [];
+    S.future      = [];
+    S.pending     = [];
+    document.getElementById('drop-overlay').classList.add('hidden');
+    updateTransform();
+    refreshButtons();
+    updateStatus();
+    render();
+    URL.revokeObjectURL(url);
+  };
+  img.onerror = () => { alert('Could not load image.'); URL.revokeObjectURL(url); };
+  img.src = url;
+}
+
+document.getElementById('btn-load').addEventListener('click', () =>
+  document.getElementById('file-input').click()
+);
+document.getElementById('file-input').addEventListener('change', e => {
+  if (e.target.files[0]) loadImageFile(e.target.files[0]);
+  e.target.value = '';
+});
+
+// Drag & drop onto canvas area
+const wrap = document.getElementById('canvas-wrap');
+wrap.addEventListener('dragover', (e) => {
+  e.preventDefault();
+  document.getElementById('drop-active-overlay').classList.add('visible');
+});
+wrap.addEventListener('dragleave', (e) => {
+  if (!wrap.contains(e.relatedTarget))
+    document.getElementById('drop-active-overlay').classList.remove('visible');
+});
+wrap.addEventListener('drop', (e) => {
+  e.preventDefault();
+  document.getElementById('drop-active-overlay').classList.remove('visible');
+  const file = e.dataTransfer.files[0];
+  if (file) loadImageFile(file);
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Delete / Clear
+// ─────────────────────────────────────────────────────────────────────────────
+function deleteSelected() {
+  if (S.selected === null) return;
+  pushHistory();
+  S.annotations.splice(S.selected, 1);
+  S.selected = null;
+  refreshButtons();
+  render();
+}
+
+document.getElementById('btn-delete').addEventListener('click', deleteSelected);
+
+document.getElementById('btn-clear').addEventListener('click', () => {
+  if (!S.annotations.length) return;
+  if (!confirm('Delete all annotations?')) return;
+  pushHistory();
+  S.annotations = [];
+  S.selected    = null;
+  refreshButtons();
+  render();
+});
+
+document.getElementById('btn-undo').addEventListener('click', undo);
+document.getElementById('btn-redo').addEventListener('click', redo);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Export
+// ─────────────────────────────────────────────────────────────────────────────
+function doExport() {
+  if (!S.imageEl) return;
+
+  const oc  = document.createElement('canvas');
+  oc.width  = S.imgW;
+  oc.height = S.imgH;
+  const octx = oc.getContext('2d');
+
+  // Polyfill roundRect on the offscreen canvas context
+  if (!octx.roundRect) octx.roundRect = CanvasRenderingContext2D.prototype.roundRect;
+
+  octx.drawImage(S.imageEl, 0, 0);
+
+  // Scale factor: display → image pixels
+  const sf = 1 / T.scale;
+
+  S.annotations.forEach(a => {
+    if (a.type === 'angle') exportAngle(octx, a, sf);
+    else if (a.type === 'text') exportText(octx, a, sf);
+  });
+
+  // Try the native save-file dialog (Chrome/Edge); fall back to auto-download
+  // (Firefox, Safari) which still works but can't choose the directory.
+  if (window.showSaveFilePicker) {
+    oc.toBlob(async (blob) => {
+      try {
+        const handle = await window.showSaveFilePicker({
+          suggestedName: 'angler-export.png',
+          types: [{ description: 'PNG image', accept: { 'image/png': ['.png'] } }],
+        });
+        const writable = await handle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+      } catch (err) {
+        if (err.name !== 'AbortError') console.error('Export failed:', err);
+      }
+    }, 'image/png');
+  } else {
+    const link = document.createElement('a');
+    link.download = 'angler-export.png';
+    link.href = oc.toDataURL('image/png');
+    link.click();
+  }
+}
+
+function exportAngle(ectx, a, sf) {
+  const [pA, pB, pC] = a.points;
+  const color   = a.color || COLOR_ANGLE;
+  const lw      = 2 * sf;
+  const arcR    = ARC_R * sf;
+  const dotR    = DOT_R * sf;
+
+  ectx.save();
+  ectx.strokeStyle = color;
+  ectx.fillStyle   = color;
+  ectx.lineWidth   = lw;
+  ectx.lineCap     = 'round';
+
+  ectx.beginPath();
+  ectx.moveTo(pA.x, pA.y); ectx.lineTo(pB.x, pB.y);
+  ectx.moveTo(pC.x, pC.y); ectx.lineTo(pB.x, pB.y);
+  ectx.stroke();
+
+  const angA = Math.atan2(pA.y - pB.y, pA.x - pB.x);
+  const angC = Math.atan2(pC.y - pB.y, pC.x - pB.x);
+  let diff   = angC - angA;
+  while (diff >  Math.PI) diff -= 2 * Math.PI;
+  while (diff < -Math.PI) diff += 2 * Math.PI;
+  ectx.beginPath();
+  ectx.arc(pB.x, pB.y, arcR, angA, angC, diff < 0);
+  ectx.lineWidth = 1.5 * sf; ectx.stroke();
+
+  [[pA, dotR], [pB, dotR + sf], [pC, dotR]].forEach(([p, r]) => {
+    ectx.beginPath(); ectx.arc(p.x, p.y, r, 0, Math.PI * 2); ectx.fill();
+  });
+
+  // Label
+  const deg  = angleBetween(pA, pB, pC);
+  const text = deg.toFixed(1) + '°';
+  const bisA = bisectorAngleRaw(pA, pB, pC);
+  const ld   = arcR + 22 * sf;
+  const lx   = pB.x + Math.cos(bisA) * ld + (a.labelOffset?.x || 0) * sf;
+  const ly   = pB.y + Math.sin(bisA) * ld + (a.labelOffset?.y || 0) * sf;
+  const rot  = (a.labelRotation || 0) * Math.PI / 180;
+  const fs   = 15 * sf;
+
+  ectx.save();
+  ectx.translate(lx, ly);
+  ectx.rotate(rot);
+  ectx.font = `bold ${fs}px "SF Mono","Fira Mono",monospace`;
+  ectx.textAlign    = 'center';
+  ectx.textBaseline = 'middle';
+  const tw = ectx.measureText(text).width + 10 * sf;
+  const th = 21 * sf;
+  ectx.fillStyle = 'rgba(0,0,0,0.6)';
+  ectx.roundRect(-tw / 2, -th / 2, tw, th, 4 * sf); ectx.fill();
+  ectx.fillStyle = color;
+  ectx.fillText(text, 0, 0);
+  ectx.restore();
+  ectx.restore();
+}
+
+function bisectorAngleRaw(pA, pB, pC) { // image-space points (same logic)
+  const lA = Math.hypot(pA.x - pB.x, pA.y - pB.y);
+  const lC = Math.hypot(pC.x - pB.x, pC.y - pB.y);
+  if (!lA || !lC) return 0;
+  const ux = (pA.x - pB.x) / lA + (pC.x - pB.x) / lC;
+  const uy = (pA.y - pB.y) / lA + (pC.y - pB.y) / lC;
+  return Math.atan2(uy, ux);
+}
+
+function exportText(ectx, a, sf) {
+  const { x, y } = a.position;
+  const color = a.color || COLOR_TEXT;
+  const rot   = (a.rotation || 0) * Math.PI / 180;
+  const fs    = (a.fontSize || 16) * sf;
+
+  ectx.save();
+  ectx.translate(x, y);
+  ectx.rotate(rot);
+  ectx.font = `bold ${fs}px sans-serif`;
+  ectx.textAlign    = 'center';
+  ectx.textBaseline = 'middle';
+  const tw = ectx.measureText(a.text).width + 14 * sf;
+  const th = fs + 10 * sf;
+  ectx.fillStyle = 'rgba(0,0,0,0.55)';
+  ectx.roundRect(-tw / 2, -th / 2, tw, th, 5 * sf); ectx.fill();
+  ectx.fillStyle = color;
+  ectx.fillText(a.text, 0, 0);
+  ectx.restore();
+}
+
+document.getElementById('btn-export').addEventListener('click', doExport);
+
+// ── Properties panel events ───────────────────────────────────────────────
+
+// Capture pre-change snapshot the moment the picker opens, then commit it
+// to history only when it closes — so live-dragging the color wheel still
+// gives one clean undo step rather than hundreds.
+let _colorSnapshot = null;
+document.getElementById('color-swatch').addEventListener('mousedown', () => {
+  if (S.selected !== null) _colorSnapshot = snapshot();
+});
+document.getElementById('prop-color').addEventListener('input', (e) => {
+  if (S.selected === null) return;
+  S.annotations[S.selected].color = e.target.value;
+  document.getElementById('color-swatch').style.background = e.target.value;
+  render();
+});
+document.getElementById('prop-color').addEventListener('change', () => {
+  if (_colorSnapshot) {
+    S.history.push(_colorSnapshot);
+    S.future = [];
+    _colorSnapshot = null;
+    refreshButtons();
+  }
+});
+
+document.getElementById('btn-size-down').addEventListener('click', () => changeSize(-2));
+document.getElementById('btn-size-up').addEventListener('click',   () => changeSize(+2));
+
+function changeSize(delta) {
+  if (S.selected === null) return;
+  const a = S.annotations[S.selected];
+  if (a.type !== 'text') return;
+  pushHistory();
+  a.fontSize = Math.max(8, Math.min(96, (a.fontSize || 16) + delta));
+  document.getElementById('size-display').textContent = a.fontSize;
+  render();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// UI state helpers
+// ─────────────────────────────────────────────────────────────────────────────
+function refreshButtons() {
+  const hasImage  = !!S.imageEl;
+  const hasSel    = S.selected !== null;
+  const hasAnnos  = S.annotations.length > 0;
+  document.getElementById('btn-undo').disabled   = !S.history.length;
+  document.getElementById('btn-redo').disabled   = !S.future.length;
+  document.getElementById('btn-delete').disabled = !hasSel;
+  document.getElementById('btn-clear').disabled  = !hasAnnos;
+  document.getElementById('btn-export').disabled = !hasImage;
+  refreshProps();
+}
+
+function refreshProps() {
+  const panel    = document.getElementById('props-panel');
+  const propsSep = document.getElementById('props-sep');
+  const isText   = S.selected !== null && S.annotations[S.selected]?.type === 'text';
+  const hasSel   = S.selected !== null;
+
+  panel.classList.toggle('visible', hasSel);
+  propsSep.style.display = hasSel ? '' : 'none';
+
+  // Size controls only for text annotations
+  document.getElementById('size-sep').style.display      = isText ? '' : 'none';
+  document.getElementById('size-label').style.display    = isText ? '' : 'none';
+  document.getElementById('size-controls').style.display = isText ? '' : 'none';
+
+  if (!hasSel) return;
+
+  const a     = S.annotations[S.selected];
+  const color = a.color || (a.type === 'text' ? COLOR_TEXT : COLOR_ANGLE);
+
+  // Sync color swatch background and hidden input value
+  document.getElementById('color-swatch').style.background = color;
+  document.getElementById('prop-color').value = rgbToHex(color);
+
+  if (isText) {
+    document.getElementById('size-display').textContent = a.fontSize || 16;
+  }
+}
+
+/** Ensure a color string is a valid 6-digit hex (color inputs require #rrggbb) */
+function rgbToHex(color) {
+  // If already a 6-digit hex, return as-is
+  if (/^#[0-9a-f]{6}$/i.test(color)) return color;
+  // Let the browser parse it via a temporary element
+  const tmp = document.createElement('canvas').getContext('2d');
+  tmp.fillStyle = color;
+  const parsed = tmp.fillStyle; // browser normalises to #rrggbb or rgb(...)
+  if (/^#[0-9a-f]{6}$/i.test(parsed)) return parsed;
+  // fallback: parse rgb(r,g,b)
+  const m = parsed.match(/\d+/g);
+  if (m) return '#' + m.slice(0, 3).map(n => (+n).toString(16).padStart(2, '0')).join('');
+  return '#ffffff';
+}
+
+const STEP_HINTS = [
+  'Click first arm point  (e.g. shoulder)',
+  'Click the vertex  (e.g. hip — the angle\'s corner)',
+  'Click second arm point  (e.g. knee)',
+];
+
+function updateStatus() {
+  const hint = document.getElementById('status-hint');
+  const info = document.getElementById('status-info');
+
+  if (!S.imageEl) {
+    hint.textContent = 'Load an image to get started';
+    info.textContent = '';
+    return;
+  }
+  if (S.tool === 'angle') {
+    const step = S.pending.length;
+    hint.textContent = `📐 Angle tool — Step ${step + 1}/3: ${STEP_HINTS[step]}`;
+    info.textContent = 'Esc to cancel';
+  } else if (S.tool === 'text') {
+    hint.textContent = '✏️ Text tool — Click anywhere on the image to place a label';
+    info.textContent = '';
+  } else {
+    hint.textContent = '↖ Select — click to select · drag to move · drag ↻ to rotate · double-click text to edit';
+    info.textContent = S.selected !== null ? `${S.annotations[S.selected].type} selected` : '';
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Init
+// ─────────────────────────────────────────────────────────────────────────────
+refreshButtons();
+updateStatus();
+resizeCanvas(); // also calls render()
+</script>
+</body>
+</html>

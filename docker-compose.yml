@@ -1,0 +1,9 @@
+services:
+  angler:
+    image: nginx:alpine
+    ports:
+      - "3000:80"
+    volumes:
+      - ./app:/usr/share/nginx/html:ro
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    restart: unless-stopped
