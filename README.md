@@ -4,6 +4,8 @@ A lightweight browser-based tool for annotating images and videos with angle mea
 
 ![screenshot placeholder](docs/screenshot.png)
 
+![Video placeholder](docs/forward_fold-annotated.mp4)
+
 ---
 
 ## Requirements
