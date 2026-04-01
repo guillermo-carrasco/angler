@@ -87,6 +87,12 @@
       width: 100%;
       height: 100%;
       display: block;
+      touch-action: none; /* prevent scroll/zoom interfering with canvas gestures */
+    }
+
+    @media (pointer: coarse) {
+      button { padding: 8px 14px; font-size: 14px; min-height: 40px; }
+      .drop-sub { display: none; }
     }
 
     #drop-overlay {
@@ -457,9 +463,11 @@ if (!CanvasRenderingContext2D.prototype.roundRect) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+const isTouch = window.matchMedia('(pointer: coarse)').matches;
+
 // Constants
 // ─────────────────────────────────────────────────────────────────────────────
-const PT_HIT_R   = 10;  // px — point hit radius
+const PT_HIT_R   = isTouch ? 22 : 10;  // px — point hit radius (larger for fingers)
 const BODY_PAD   = 8;   // px — extra padding around text bounding box for hits
 const ROT_OFFSET = 44;  // px — rotate handle distance from annotation center
 const ARC_R      = 36;  // px — arc radius for angle display
@@ -945,10 +953,11 @@ function hitTextAnno(a, idx, cx, cy) {
 // Mouse events
 // ─────────────────────────────────────────────────────────────────────────────
 function canvasMouse(e) {
+  const src = e.touches?.[0] ?? e.changedTouches?.[0] ?? e;
   const r = canvas.getBoundingClientRect();
   return {
-    x: (e.clientX - r.left) * (canvas.width  / r.width),
-    y: (e.clientY - r.top)  * (canvas.height / r.height),
+    x: (src.clientX - r.left) * (canvas.width  / r.width),
+    y: (src.clientY - r.top)  * (canvas.height / r.height),
   };
 }
 
@@ -1009,6 +1018,52 @@ canvas.addEventListener('dblclick', (e) => {
   const h = hitTest(m.x, m.y);
   if (h && S.annotations[h.idx].type === 'text') startEditText(h.idx);
 });
+
+// ── Touch support ─────────────────────────────────────────────────────────
+if (isTouch) {
+  let _lastTapTime = 0;
+  let _lastTapPos  = null;
+
+  canvas.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    if (!S.imageEl && !S.isVideo) return;
+    const m = canvasMouse(e);
+    if (S.tool === 'select')     handleSelectDown(m);
+    else if (S.tool === 'angle') handleAngleClick(m);
+    else if (S.tool === 'text')  handleTextClick(m);
+  }, { passive: false });
+
+  canvas.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    const m = canvasMouse(e);
+    S.mouse = m;
+    if (S.drag) { handleDragMove(m); render(); }
+  }, { passive: false });
+
+  canvas.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    if (S.drag) {
+      S.drag = null;
+      return;
+    }
+    // Double-tap → edit text label
+    if (S.tool === 'select') {
+      const m   = canvasMouse(e);
+      const now = Date.now();
+      if (_lastTapPos &&
+          now - _lastTapTime < 300 &&
+          Math.hypot(m.x - _lastTapPos.x, m.y - _lastTapPos.y) < 30) {
+        const h = hitTest(m.x, m.y);
+        if (h && S.annotations[h.idx].type === 'text') startEditText(h.idx);
+        _lastTapTime = 0;
+        _lastTapPos  = null;
+      } else {
+        _lastTapTime = now;
+        _lastTapPos  = m;
+      }
+    }
+  }, { passive: false });
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Select tool interactions
@@ -1320,8 +1375,8 @@ function loadVideoFile(file) {
     S.videoFileName  = file.name;
     S.imgW    = vid.videoWidth;
     S.imgH    = vid.videoHeight;
-    document.getElementById('video-controls').classList.add('visible');
-    document.getElementById('btn-export-video').style.display = '';
+    if (!isTouch) document.getElementById('video-controls').classList.add('visible');
+    if (!isTouch) document.getElementById('btn-export-video').style.display = '';
     document.getElementById('vc-total').textContent = fmtTime(vid.duration);
     document.getElementById('seek-slider').value = 0;
     updateTransform();
@@ -1960,6 +2015,15 @@ function updateStatus() {
 // ─────────────────────────────────────────────────────────────────────────────
 // Init
 // ─────────────────────────────────────────────────────────────────────────────
+if (isTouch) {
+  // Restrict file picker to images only — video export doesn't work on mobile
+  document.getElementById('file-input').accept = 'image/*';
+  // Hide all video-related UI
+  document.getElementById('btn-export-video').style.display = 'none';
+  // Simplify drop overlay for mobile (no drag and drop)
+  document.querySelector('.drop-title').textContent = 'Tap Load File to open a photo';
+}
+
 refreshButtons();
 updateStatus();
 resizeCanvas(); // also calls render()
