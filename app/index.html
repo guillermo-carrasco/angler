@@ -1572,8 +1572,14 @@ function doExport() {
     else if (a.type === 'text') exportText(octx, a, sf);
   });
 
-  // Try the native save-file dialog (Chrome/Edge); fall back to auto-download
-  // (Firefox, Safari) which still works but can't choose the directory.
+  // Mobile: open image in a new tab — user can long-press → Save to Photos
+  if (isTouch) {
+    const url = oc.toDataURL('image/png');
+    window.open(url, '_blank');
+    return;
+  }
+
+  // Desktop: try native save-file dialog (Chrome/Edge), fall back to auto-download
   if (window.showSaveFilePicker) {
     oc.toBlob(async (blob) => {
       try {
