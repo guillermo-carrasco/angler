@@ -1,6 +1,6 @@
 # Angler
 
-A lightweight browser-based tool for annotating images with angle measurements and text labels. Built to track progress in flexibility and mobility training — measure the angle at your hip in a forward fold, mark key landmarks, and export the annotated image.
+A lightweight browser-based tool for annotating images and videos with angle measurements and text labels. Built to track progress in flexibility and mobility training — measure the angle at your hip in a forward fold, mark key landmarks, and export the annotated image or video clip.
 
 ![screenshot placeholder](docs/screenshot.png)
 
@@ -49,9 +49,12 @@ docker compose down
 
 ## Usage
 
-### 1. Load an image
+### 1. Load a file
 
-Either click **Load Image** in the toolbar or **drag and drop** a photo onto the canvas. Supports JPG, PNG, and WebP.
+Either click **Load Image** or **Load Video** in the toolbar, or **drag and drop** a file onto the canvas.
+
+- **Images**: JPG, PNG, WebP
+- **Videos**: MP4, WebM, MOV (any format your browser supports)
 
 ---
 
@@ -122,7 +125,7 @@ Every action that modifies annotations — adding, moving, rotating, deleting, c
 
 ---
 
-### 6. Exporting
+### 6. Exporting images
 
 Click **⬇ Export PNG** or press `Ctrl+E` (`Cmd+E`).
 
@@ -133,6 +136,57 @@ The exported PNG is at the **original image resolution** with all annotations re
 
 ---
 
+### 7. Video support
+
+When a video is loaded, additional controls appear below the canvas:
+
+#### Playback
+
+- **Play/Pause** button or `Space` key to toggle playback.
+- **Scrub bar** — drag to jump to any frame.
+- **Current time / duration** displayed next to the scrub bar.
+
+#### Audio
+
+- **Mute/Unmute** button to toggle audio.
+- **Volume slider** to set the volume level.
+
+Audio is preserved in exported video clips.
+
+#### Time-ranged annotations
+
+Annotations added while a video is loaded are automatically attached to the current playback position:
+
+- Each annotation has a **start time** and **end time** — it only appears within that range.
+- By default the end time is set to the end of the video.
+- Annotations placed at different timestamps are independent; scrubbing through the video shows or hides them automatically.
+
+#### Keyframe animation (angle annotations)
+
+Angle annotations in video mode support **keyframe animation** — the angle can change as the video plays:
+
+1. Place an angle annotation at a given timestamp.
+2. Scrub to a different time where the joint is in a different position.
+3. Drag any of the three annotation points to their new positions.
+4. A new keyframe is saved automatically on mouse release.
+
+When you play the video, the annotation smoothly interpolates between keyframes, tracking the joint movement frame by frame. You can add as many keyframes as needed.
+
+#### Exporting video
+
+Click **⬇ Export Video**.
+
+- A Save As dialog opens immediately so you can choose the filename and folder before recording begins. The suggested name is based on the original video filename (e.g. `myvideo-annotated.mp4`).
+- The app detects which portion of the video contains annotations and **only records that slice** — e.g., if your annotations span 5:00–5:45, the export is ~46 seconds, not the full video length.
+- A progress bar shows recording progress.
+- The exported clip is at the **original video resolution and aspect ratio** (portrait videos stay portrait).
+- The export format matches the original video when the browser supports it (MP4 on Safari and Chrome; WebM fallback on Firefox).
+- The exported clip includes the original audio.
+
+> **Note:** Recording happens at real-time speed (the browser plays through the annotated segment while capturing). For a 46-second annotated clip, the export takes about 46 seconds.
+
+---
+
 ## Keyboard shortcuts
 
 | Key | Action |
@@ -140,6 +194,7 @@ The exported PNG is at the **original image resolution** with all annotations re
 | `V` | Select tool |
 | `A` | Angle tool |
 | `T` | Text tool |
+| `Space` | Play / Pause (video) |
 | `Ctrl+Z` | Undo |
 | `Ctrl+Shift+Z` | Redo |
 | `Ctrl+E` | Export PNG |
@@ -159,4 +214,4 @@ angler/
 └── README.md
 ```
 
-The app is intentionally a single self-contained HTML file with no build step or external dependencies. This makes it easy to publish later to any static hosting platform (Vercel, Netlify, GitHub Pages, S3, etc.) by simply uploading `app/index.html`.
+The app is intentionally a single self-contained HTML file with no build step or external dependencies. This makes it easy to publish to any static hosting platform (Vercel, Netlify, GitHub Pages, S3, etc.) by simply uploading `app/index.html`.

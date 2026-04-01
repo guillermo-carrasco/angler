@@ -202,6 +202,108 @@
       color: #e5e7eb;
     }
 
+    /* ── Video controls ─────────────────────────────────────────────── */
+    #video-controls {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      background: #1a2332;
+      border-top: 1px solid #374151;
+      flex-shrink: 0;
+    }
+    #video-controls.visible { display: flex; }
+
+    #btn-play-pause {
+      font-size: 15px;
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .vc-step {
+      font-size: 13px;
+      width: 28px;
+      height: 28px;
+      padding: 0;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    #seek-slider {
+      flex: 1;
+      -webkit-appearance: none;
+      height: 4px;
+      border-radius: 2px;
+      background: #374151;
+      outline: none;
+      cursor: pointer;
+      accent-color: #38bdf8;
+    }
+    #seek-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #38bdf8;
+      cursor: pointer;
+    }
+    #volume-slider {
+      width: 72px;
+      flex-shrink: 0;
+      -webkit-appearance: none;
+      height: 4px;
+      border-radius: 2px;
+      background: #374151;
+      outline: none;
+      cursor: pointer;
+      accent-color: #9ca3af;
+    }
+    #volume-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #9ca3af;
+      cursor: pointer;
+    }
+    .vc-time {
+      font-size: 12px;
+      font-variant-numeric: tabular-nums;
+      color: #9ca3af;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    #export-video-progress {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.72);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      z-index: 30;
+      color: #e5e7eb;
+      font-size: 15px;
+      font-weight: 600;
+    }
+    #export-video-progress.visible { display: flex; }
+    #export-progress-bar-wrap {
+      width: 260px;
+      height: 6px;
+      background: #374151;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    #export-progress-bar {
+      height: 100%;
+      background: #38bdf8;
+      border-radius: 3px;
+      width: 0%;
+      transition: width 0.2s;
+    }
+
     /* ── Status bar ──────────────────────────────────────────────────── */
     #statusbar {
       background: #1f2937;
@@ -224,10 +326,10 @@
 <div id="toolbar">
   <span id="app-title">ANGLER</span>
 
-  <button id="btn-load" title="Load image (or drag & drop)">
-    <span class="tool-icon">📂</span> Load Image
+  <button id="btn-load" title="Load image or video (or drag & drop)">
+    <span class="tool-icon">📂</span> Load File
   </button>
-  <input id="file-input" type="file" accept="image/*" style="display:none">
+  <input id="file-input" type="file" accept="image/*,video/*" style="display:none">
 
   <div class="sep"></div>
 
@@ -261,8 +363,11 @@
 
   <div class="sep"></div>
 
-  <button id="btn-export" disabled title="Export annotated image  [Ctrl+E]">
+  <button id="btn-export" disabled title="Export annotated frame as PNG  [Ctrl+E]">
     <span class="tool-icon">⬇</span> Export PNG
+  </button>
+  <button id="btn-export-video" disabled style="display:none" title="Export full annotated video  [Ctrl+Shift+E]">
+    <span class="tool-icon">🎬</span> Export Video
   </button>
 
   <!-- Properties panel — shown when an annotation is selected -->
@@ -279,6 +384,14 @@
       <span id="size-display">16</span>
       <button id="btn-size-up" title="Increase font size (+2)">+</button>
     </div>
+    <span class="sep" id="time-range-sep" style="display:none"></span>
+    <span class="prop-label" id="time-range-label" style="display:none">⏱</span>
+    <span id="time-range-display" style="display:none; font-size:12px; color:#9ca3af; font-variant-numeric:tabular-nums; white-space:nowrap"></span>
+    <button id="btn-set-end" style="display:none" title="Set current video time as the end of this annotation  [E]">Set end here</button>
+    <button id="btn-clear-end" style="display:none" title="Remove end time — annotation plays until end of video">∞ No end</button>
+    <span class="sep" id="kf-sep" style="display:none"></span>
+    <span id="kf-display" style="display:none; font-size:11px; color:#6b7280; white-space:nowrap"></span>
+    <button id="btn-del-kf" class="danger" style="display:none" title="Delete the keyframe closest to the current time">✕ keyframe</button>
   </div>
 </div>
 
@@ -288,15 +401,33 @@
 
   <div id="drop-overlay">
     <div class="drop-icon">📷</div>
-    <div class="drop-title">Drop an image here</div>
-    <div class="drop-sub">or click <strong>Load Image</strong> above &nbsp;·&nbsp; JPG, PNG, WebP</div>
+    <div class="drop-title">Drop an image or video here</div>
+    <div class="drop-sub">or click <strong>Load File</strong> above &nbsp;·&nbsp; JPG, PNG, WebP, MP4, MOV, WebM</div>
   </div>
 
-  <div id="drop-active-overlay">Drop to load image</div>
+  <div id="drop-active-overlay">Drop to load file</div>
+
+  <div id="export-video-progress">
+    <div>Recording annotated video…</div>
+    <div id="export-progress-bar-wrap"><div id="export-progress-bar"></div></div>
+    <div id="export-progress-label" style="font-size:12px;color:#9ca3af"></div>
+  </div>
 
   <div id="text-input-wrap">
     <input id="text-input" type="text" placeholder="Type label…" maxlength="120" autocomplete="off" spellcheck="false">
   </div>
+</div>
+
+<!-- ── Video controls ──────────────────────────────────────────────────── -->
+<div id="video-controls">
+  <button id="btn-play-pause" title="Play / Pause  [Space]">▶</button>
+  <button class="vc-step" id="btn-frame-back"    title="Previous frame  [←]">⏮</button>
+  <button class="vc-step" id="btn-frame-forward" title="Next frame  [→]">⏭</button>
+  <span class="vc-time" id="vc-current">0:00.0</span>
+  <input type="range" id="seek-slider" min="0" max="1000" step="1" value="0">
+  <span class="vc-time" id="vc-total">0:00.0</span>
+  <button class="vc-step" id="btn-mute" title="Mute / Unmute  [M]">🔊</button>
+  <input type="range" id="volume-slider" min="0" max="100" step="1" value="100" title="Volume">
 </div>
 
 <!-- ── Status bar ──────────────────────────────────────────────────────── -->
@@ -342,7 +473,11 @@ const COLOR_SEL   = '#ffffff';
 // State
 // ─────────────────────────────────────────────────────────────────────────────
 const S = {
-  imageEl:     null,
+  imageEl:     null,  // HTMLImageElement when image is loaded
+  videoEl:     null,  // HTMLVideoElement when video is loaded
+  isVideo:     false,
+  videoMimeType: null, // original file MIME type (e.g. 'video/mp4')
+  videoFileName: null, // original filename for export naming
   imgW:        0,
   imgH:        0,
   tool:        'select',
@@ -371,11 +506,11 @@ const S = {
 // Canvas + transform
 // ─────────────────────────────────────────────────────────────────────────────
 const canvas = document.getElementById('canvas');
-const ctx    = canvas.getContext('2d');
+let ctx      = canvas.getContext('2d');
 let T = { scale: 1, ox: 0, oy: 0 }; // display transform
 
 function updateTransform() {
-  if (!S.imageEl) { T = { scale: 1, ox: 0, oy: 0 }; return; }
+  if (!S.imgW || !S.imgH) { T = { scale: 1, ox: 0, oy: 0 }; return; }
   const pad  = 24;
   const aw   = canvas.width  - pad * 2;
   const ah   = canvas.height - pad * 2;
@@ -433,17 +568,111 @@ function redo() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Time visibility
+// ─────────────────────────────────────────────────────────────────────────────
+function shouldShowAnno(a) {
+  if (!S.isVideo) return true;
+  const t = S.videoEl.currentTime;
+  if (a.timeStart != null && t < a.timeStart - 0.016) return false;
+  if (a.timeEnd   != null && t > a.timeEnd   + 0.016) return false;
+  return true;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Keyframe animation (video only)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Linear interpolation between two sets of points.
+ */
+function lerpPoints(ptsA, ptsB, alpha) {
+  return ptsA.map((p, i) => ({
+    x: p.x + (ptsB[i].x - p.x) * alpha,
+    y: p.y + (ptsB[i].y - p.y) * alpha,
+  }));
+}
+
+/**
+ * Shallow-copies a points array so mutations to a.points never corrupt keyframe data.
+ */
+function copyPoints(pts) {
+  return pts.map(p => ({ x: p.x, y: p.y }));
+}
+
+/**
+ * Returns the interpolated points for annotation `a` at time `t`.
+ * Always returns a fresh array so the drag code can mutate a.points freely
+ * without aliasing into any stored keyframe.
+ * Falls back to a.points when no keyframes exist (static / image mode).
+ */
+function effectivePoints(a, t) {
+  const kfs = a.keyframes;
+  if (!kfs || kfs.length === 0) return a.points;
+  if (kfs.length === 1 || t <= kfs[0].time) return copyPoints(kfs[0].points);
+  if (t >= kfs[kfs.length - 1].time) return copyPoints(kfs[kfs.length - 1].points);
+  for (let i = 0; i < kfs.length - 1; i++) {
+    if (t >= kfs[i].time && t <= kfs[i + 1].time) {
+      const alpha = (t - kfs[i].time) / (kfs[i + 1].time - kfs[i].time);
+      return lerpPoints(kfs[i].points, kfs[i + 1].points, alpha); // lerpPoints already creates fresh objects
+    }
+  }
+  return copyPoints(kfs[kfs.length - 1].points);
+}
+
+/**
+ * Before rendering each frame, update a.points on keyframed annotations
+ * so the rest of the code (hit testing, draw calls) can use a.points as-is.
+ * Skips the annotation currently being dragged to avoid fighting with the drag.
+ */
+function syncAnimatedPoints() {
+  if (!S.isVideo) return;
+  const t = S.videoEl.currentTime;
+  S.annotations.forEach((a, i) => {
+    if (a.type !== 'angle' || !a.keyframes || a.keyframes.length === 0) return;
+    // Don't overwrite during an active point/move drag on this annotation
+    const draggingThis = S.drag &&
+      (S.drag.type === 'move-anno' || S.drag.type === 'move-point') &&
+      S.drag.idx === i;
+    if (!draggingThis) a.points = effectivePoints(a, t);
+  });
+}
+
+/**
+ * Record the current a.points as a keyframe at the current video time.
+ * If a keyframe already exists within 100 ms, overwrite it.
+ */
+function writeKeyframe(idx) {
+  const a = S.annotations[idx];
+  if (a.type !== 'angle' || !S.isVideo) return;
+  if (!a.keyframes) a.keyframes = [];
+  const t      = S.videoEl.currentTime;
+  const pts    = JSON.parse(JSON.stringify(a.points));
+  const nearby = a.keyframes.findIndex(kf => Math.abs(kf.time - t) < 0.1);
+  if (nearby >= 0) {
+    a.keyframes[nearby].points = pts;
+  } else {
+    a.keyframes.push({ time: t, points: pts });
+    a.keyframes.sort((x, y) => x.time - y.time);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Render
 // ─────────────────────────────────────────────────────────────────────────────
 function render() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  syncAnimatedPoints(); // update a.points from keyframes before drawing
 
-  if (S.imageEl) {
-    ctx.drawImage(S.imageEl, T.ox, T.oy, S.imgW * T.scale, S.imgH * T.scale);
+  ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+
+  const src = S.isVideo ? S.videoEl : S.imageEl;
+  if (src) {
+    ctx.drawImage(src, T.ox, T.oy, S.imgW * T.scale, S.imgH * T.scale);
   }
 
-  // Draw all annotations
-  S.annotations.forEach((a, i) => drawAnnotation(a, i === S.selected));
+  // Draw visible annotations (all on images; time-filtered on video)
+  S.annotations.forEach((a, i) => {
+    if (shouldShowAnno(a)) drawAnnotation(a, i === S.selected);
+  });
 
   // Draw pending angle preview
   drawPending();
@@ -657,6 +886,7 @@ function bisectorAngle(cA, cB, cC) { // canvas-space points
 function hitTest(cx, cy) {
   for (let i = S.annotations.length - 1; i >= 0; i--) {
     const a = S.annotations[i];
+    if (!shouldShowAnno(a)) continue;
     const h = hitAnnotation(a, i, cx, cy);
     if (h) return h;
   }
@@ -733,7 +963,7 @@ canvas.addEventListener('mousemove', (e) => {
   }
 
   // Cursor feedback
-  if (S.imageEl && S.tool === 'select') {
+  if ((S.imageEl || S.isVideo) && S.tool === 'select') {
     const h = hitTest(m.x, m.y);
     canvas.style.cursor = h
       ? (h.type === 'rotate' ? 'grab' : 'move')
@@ -748,7 +978,7 @@ canvas.addEventListener('mousemove', (e) => {
 });
 
 canvas.addEventListener('mousedown', (e) => {
-  if (e.button !== 0 || !S.imageEl) return;
+  if (e.button !== 0 || (!S.imageEl && !S.isVideo)) return;
   const m = canvasMouse(e);
 
   if (S.tool === 'select')     handleSelectDown(m);
@@ -757,7 +987,15 @@ canvas.addEventListener('mousedown', (e) => {
 });
 
 canvas.addEventListener('mouseup', () => {
-  if (S.drag) { S.drag = null; }
+  if (S.drag) {
+    // In video mode: commit the dragged position as a new keyframe
+    if (S.isVideo && S.drag.idx != null &&
+        (S.drag.type === 'move-anno' || S.drag.type === 'move-point')) {
+      writeKeyframe(S.drag.idx);
+      refreshProps(); // update keyframe count in panel
+    }
+    S.drag = null;
+  }
 });
 
 canvas.addEventListener('mouseleave', () => {
@@ -861,12 +1099,17 @@ function handleAngleClick(m) {
   if (S.pending.length === 3) {
     pushHistory();
     const [A, B, C] = S.pending;
+    const annoPoints = [A, B, C];
     S.annotations.push({
-      type:  'angle',
-      points: [A, B, C],  // B = vertex (2nd click)
-      color:  COLOR_ANGLE,
+      type:         'angle',
+      points:       annoPoints,  // B = vertex (2nd click); kept in sync by syncAnimatedPoints
+      color:        COLOR_ANGLE,
       labelRotation: 0,
       labelOffset:   { x: 0, y: 0 },
+      ...(S.isVideo && {
+        timeStart: S.videoEl.currentTime,
+        keyframes: [{ time: S.videoEl.currentTime, points: JSON.parse(JSON.stringify(annoPoints)) }],
+      }),
     });
     S.selected = S.annotations.length - 1;
     S.pending  = [];
@@ -925,6 +1168,7 @@ function openTextInput(canvasPos, initialText, editIdx) {
           color:    COLOR_TEXT,
           rotation: 0,
           fontSize: 16,
+          ...(S.isVideo && { timeStart: S.videoEl.currentTime }),
         });
         S.selected = S.annotations.length - 1;
         refreshButtons();
@@ -959,7 +1203,18 @@ document.addEventListener('keydown', (e) => {
 
   if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); return; }
   if ((e.metaKey || e.ctrlKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); redo(); return; }
-  if ((e.metaKey || e.ctrlKey) && e.key === 'e') { e.preventDefault(); doExport(); return; }
+  if ((e.metaKey || e.ctrlKey) && e.key === 'e' && !e.shiftKey) { e.preventDefault(); doExport(); return; }
+  if ((e.metaKey || e.ctrlKey) && e.key === 'e' &&  e.shiftKey) { e.preventDefault(); doExportVideo(); return; }
+
+  // Video shortcuts (no modifier)
+  if (!e.metaKey && !e.ctrlKey && S.isVideo) {
+    if (e.key === ' ') { e.preventDefault(); togglePlay(); return; }
+    if (e.key.toLowerCase() === 'm') { toggleMute(); return; }
+    if (e.key === 'ArrowLeft')  { e.preventDefault();
+      S.videoEl.pause(); S.videoEl.currentTime = Math.max(0, S.videoEl.currentTime - FRAME_STEP); return; }
+    if (e.key === 'ArrowRight') { e.preventDefault();
+      S.videoEl.pause(); S.videoEl.currentTime = Math.min(S.videoEl.duration, S.videoEl.currentTime + FRAME_STEP); return; }
+  }
 
   if (e.key === 'Escape') {
     S.pending  = [];
@@ -978,7 +1233,8 @@ document.addEventListener('keydown', (e) => {
   if (!e.metaKey && !e.ctrlKey) {
     const map = { v: 'select', a: 'angle', t: 'text' };
     const tool = map[e.key.toLowerCase()];
-    if (tool) setTool(tool);
+    if (tool) { setTool(tool); return; }
+    if (e.key.toLowerCase() === 'e' && S.isVideo) { setEndHere(); return; }
   }
 });
 
@@ -1003,22 +1259,42 @@ document.querySelectorAll('.tool-btn').forEach(b => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Image loading
+// File loading (image or video)
 // ─────────────────────────────────────────────────────────────────────────────
+
+function loadFile(file) {
+  if (!file) return;
+  if (file.type.startsWith('image/'))      loadImageFile(file);
+  else if (file.type.startsWith('video/')) loadVideoFile(file);
+}
+
+function resetMediaState() {
+  stopVideoLoop();
+  if (S.videoEl) {
+    S.videoEl.pause();
+    S.videoEl.src = '';
+    S.videoEl = null;
+  }
+  S.imageEl     = null;
+  S.isVideo     = false;
+  S.annotations = [];
+  S.selected    = null;
+  S.history     = [];
+  S.future      = [];
+  S.pending     = [];
+  document.getElementById('drop-overlay').classList.add('hidden');
+  document.getElementById('video-controls').classList.remove('visible');
+  document.getElementById('btn-export-video').style.display = 'none';
+}
+
 function loadImageFile(file) {
-  if (!file || !file.type.startsWith('image/')) return;
   const url = URL.createObjectURL(file);
   const img = new Image();
   img.onload = () => {
-    S.imageEl     = img;
-    S.imgW        = img.naturalWidth;
-    S.imgH        = img.naturalHeight;
-    S.annotations = [];
-    S.selected    = null;
-    S.history     = [];
-    S.future      = [];
-    S.pending     = [];
-    document.getElementById('drop-overlay').classList.add('hidden');
+    resetMediaState();
+    S.imageEl = img;
+    S.imgW    = img.naturalWidth;
+    S.imgH    = img.naturalHeight;
     updateTransform();
     refreshButtons();
     updateStatus();
@@ -1029,11 +1305,146 @@ function loadImageFile(file) {
   img.src = url;
 }
 
+function loadVideoFile(file) {
+  const url = URL.createObjectURL(file);
+  const vid = document.createElement('video');
+  vid.preload     = 'auto';
+  vid.playsInline = true;
+  vid.volume      = document.getElementById('volume-slider').value / 100;
+
+  vid.addEventListener('loadedmetadata', () => {
+    resetMediaState();
+    S.videoEl        = vid;
+    S.isVideo        = true;
+    S.videoMimeType  = file.type;
+    S.videoFileName  = file.name;
+    S.imgW    = vid.videoWidth;
+    S.imgH    = vid.videoHeight;
+    document.getElementById('video-controls').classList.add('visible');
+    document.getElementById('btn-export-video').style.display = '';
+    document.getElementById('vc-total').textContent = fmtTime(vid.duration);
+    document.getElementById('seek-slider').value = 0;
+    updateTransform();
+    refreshButtons();
+    updateStatus();
+    // Render the first frame
+    vid.currentTime = 0;
+  });
+
+  vid.addEventListener('seeked', () => {
+    render();
+    updateVcTime();
+  });
+
+  vid.addEventListener('play',  startVideoLoop);
+  vid.addEventListener('pause', stopVideoLoop);
+  vid.addEventListener('ended', () => { stopVideoLoop(); updateVcTime(); updatePlayBtn(); });
+
+  vid.onerror = () => { alert('Could not load video.'); URL.revokeObjectURL(url); };
+  vid.src = url;
+  // Don't revoke url — the video element needs it while playing
+}
+
+// ── Video render loop ─────────────────────────────────────────────────────
+
+let _rafId = null;
+
+function startVideoLoop() {
+  updatePlayBtn();
+  function loop() {
+    render();
+    updateVcTime();
+    if (S.videoEl && !S.videoEl.paused && !S.videoEl.ended) {
+      _rafId = requestAnimationFrame(loop);
+    }
+  }
+  _rafId = requestAnimationFrame(loop);
+}
+
+function stopVideoLoop() {
+  if (_rafId) { cancelAnimationFrame(_rafId); _rafId = null; }
+  updatePlayBtn();
+}
+
+// ── Video controls ────────────────────────────────────────────────────────
+
+const FRAME_STEP = 1 / 30; // seconds per frame (assumes 30 fps)
+
+document.getElementById('btn-play-pause').addEventListener('click', togglePlay);
+
+document.getElementById('btn-frame-back').addEventListener('click', () => {
+  if (!S.videoEl) return;
+  S.videoEl.pause();
+  S.videoEl.currentTime = Math.max(0, S.videoEl.currentTime - FRAME_STEP);
+});
+
+document.getElementById('btn-frame-forward').addEventListener('click', () => {
+  if (!S.videoEl) return;
+  S.videoEl.pause();
+  S.videoEl.currentTime = Math.min(S.videoEl.duration, S.videoEl.currentTime + FRAME_STEP);
+});
+
+document.getElementById('seek-slider').addEventListener('input', (e) => {
+  if (!S.videoEl) return;
+  S.videoEl.currentTime = (e.target.value / 1000) * S.videoEl.duration;
+});
+
+function togglePlay() {
+  if (!S.videoEl) return;
+  if (S.videoEl.paused || S.videoEl.ended) {
+    if (S.videoEl.ended) S.videoEl.currentTime = 0;
+    S.videoEl.play();
+  } else {
+    S.videoEl.pause();
+  }
+}
+
+function updatePlayBtn() {
+  const btn = document.getElementById('btn-play-pause');
+  btn.textContent = (S.videoEl && !S.videoEl.paused) ? '⏸' : '▶';
+}
+
+// ── Volume controls ───────────────────────────────────────────────────────
+
+document.getElementById('btn-mute').addEventListener('click', toggleMute);
+document.getElementById('volume-slider').addEventListener('input', (e) => {
+  if (!S.videoEl) return;
+  S.videoEl.volume = e.target.value / 100;
+  S.videoEl.muted  = e.target.value == 0;
+  updateMuteBtn();
+});
+
+function toggleMute() {
+  if (!S.videoEl) return;
+  S.videoEl.muted = !S.videoEl.muted;
+  updateMuteBtn();
+}
+
+function updateMuteBtn() {
+  if (!S.videoEl) return;
+  const muted = S.videoEl.muted || S.videoEl.volume === 0;
+  document.getElementById('btn-mute').textContent = muted ? '🔇' : '🔊';
+}
+
+function updateVcTime() {
+  if (!S.videoEl) return;
+  document.getElementById('vc-current').textContent = fmtTime(S.videoEl.currentTime);
+  const pct = S.videoEl.duration ? S.videoEl.currentTime / S.videoEl.duration : 0;
+  document.getElementById('seek-slider').value = Math.round(pct * 1000);
+}
+
+function fmtTime(s) {
+  if (!isFinite(s)) return '0:00.0';
+  const m = Math.floor(s / 60);
+  const sec = (s % 60).toFixed(1).padStart(4, '0');
+  return `${m}:${sec}`;
+}
+
 document.getElementById('btn-load').addEventListener('click', () =>
   document.getElementById('file-input').click()
 );
 document.getElementById('file-input').addEventListener('change', e => {
-  if (e.target.files[0]) loadImageFile(e.target.files[0]);
+  if (e.target.files[0]) loadFile(e.target.files[0]);
   e.target.value = '';
 });
 
@@ -1051,7 +1462,7 @@ wrap.addEventListener('drop', (e) => {
   e.preventDefault();
   document.getElementById('drop-active-overlay').classList.remove('visible');
   const file = e.dataTransfer.files[0];
-  if (file) loadImageFile(file);
+  if (file) loadFile(file);
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1085,7 +1496,8 @@ document.getElementById('btn-redo').addEventListener('click', redo);
 // Export
 // ─────────────────────────────────────────────────────────────────────────────
 function doExport() {
-  if (!S.imageEl) return;
+  const src = S.isVideo ? S.videoEl : S.imageEl;
+  if (!src) return;
 
   const oc  = document.createElement('canvas');
   oc.width  = S.imgW;
@@ -1095,7 +1507,7 @@ function doExport() {
   // Polyfill roundRect on the offscreen canvas context
   if (!octx.roundRect) octx.roundRect = CanvasRenderingContext2D.prototype.roundRect;
 
-  octx.drawImage(S.imageEl, 0, 0);
+  octx.drawImage(src, 0, 0);
 
   // Scale factor: display → image pixels
   const sf = 1 / T.scale;
@@ -1217,6 +1629,157 @@ function exportText(ectx, a, sf) {
 }
 
 document.getElementById('btn-export').addEventListener('click', doExport);
+document.getElementById('btn-export-video').addEventListener('click', doExportVideo);
+
+// ── Export annotated video ────────────────────────────────────────────────
+
+async function doExportVideo() {
+  if (!S.isVideo || !S.videoEl) return;
+
+  // ── Determine the slice to export ────────────────────────────────────────
+  const BUFFER = 0.5;
+  const timedAnnos = S.annotations.filter(a => a.timeStart != null);
+  let exportStart, exportEnd;
+  if (timedAnnos.length > 0) {
+    exportStart = Math.max(0,
+      Math.min(...timedAnnos.map(a => a.timeStart)) - BUFFER);
+    exportEnd   = Math.min(S.videoEl.duration,
+      Math.max(...timedAnnos.map(a => a.timeEnd ?? S.videoEl.duration)) + BUFFER);
+  } else {
+    exportStart = 0;
+    exportEnd   = S.videoEl.duration;
+  }
+  const exportDuration = exportEnd - exportStart;
+
+  // ── Pick codec: prefer original format, fall back to webm ────────────────
+  const candidates = [
+    S.videoMimeType,                   // e.g. 'video/mp4', 'video/webm'
+    'video/mp4',                       // works in Safari + newer Chrome
+    'video/webm;codecs=vp9',
+    'video/webm;codecs=vp8',
+    'video/webm',
+  ].filter(Boolean);
+  const mimeType = candidates.find(m => MediaRecorder.isTypeSupported(m)) || 'video/webm';
+
+  // Derive file extension from the chosen mimeType
+  const ext = mimeType.startsWith('video/mp4') ? 'mp4'
+            : mimeType.startsWith('video/webm') ? 'webm'
+            : mimeType.startsWith('video/ogg')  ? 'ogv'
+            : 'webm';
+
+  // Suggested filename: original name with new extension
+  const baseName = (S.videoFileName || 'angler-export').replace(/\.[^.]+$/, '');
+  const suggestedName = `${baseName}-annotated.${ext}`;
+
+  // ── Get save destination NOW while the user gesture is still fresh ────────
+  let fileHandle = null;
+  if (window.showSaveFilePicker) {
+    try {
+      fileHandle = await window.showSaveFilePicker({
+        suggestedName,
+        types: [{ description: 'Video file', accept: { [mimeType.split(';')[0]]: [`.${ext}`] } }],
+      });
+    } catch (err) {
+      if (err.name === 'AbortError') return; // user cancelled — don't record
+      // showSaveFilePicker not available in this context; fall through to auto-download
+    }
+  }
+
+  // ── Record ────────────────────────────────────────────────────────────────
+  const progressOverlay = document.getElementById('export-video-progress');
+  const progressBar     = document.getElementById('export-progress-bar');
+  const progressLabel   = document.getElementById('export-progress-label');
+
+  S.videoEl.pause();
+  S.videoEl.currentTime = exportStart;
+  await new Promise(r => S.videoEl.addEventListener('seeked', r, { once: true }));
+
+  progressOverlay.classList.add('visible');
+  progressBar.style.width = '0%';
+  progressLabel.textContent = `0:00.0 / ${fmtTime(exportDuration)}`;
+
+  // Offscreen canvas at original video resolution — preserves aspect ratio.
+  // We apply a ctx transform that maps display-canvas space → image space,
+  // so all annotation sizes (lineWidth, font, radii) scale proportionally.
+  const offscreen  = document.createElement('canvas');
+  offscreen.width  = S.imgW;
+  offscreen.height = S.imgH;
+  const displayCtx = ctx;
+  const displayT   = { ...T };
+  const exportCtx  = offscreen.getContext('2d');
+
+  const stream = offscreen.captureStream(60);
+  try {
+    S.videoEl.captureStream().getAudioTracks().forEach(t => stream.addTrack(t));
+  } catch (_) {}
+
+  const recorder = new MediaRecorder(stream, { mimeType });
+  const chunks   = [];
+  recorder.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
+
+  recorder.start(200);
+  S.videoEl.play();
+
+  await new Promise((resolve) => {
+    function onTimeUpdate() {
+      // Render to display canvas (for user feedback)
+      render();
+      // Render to offscreen canvas at full video resolution for recording.
+      // The transform maps display-canvas coordinates → image coordinates so
+      // all annotation pixel sizes (lineWidth, font, radii) scale correctly.
+      ctx = exportCtx;
+      exportCtx.save();
+      exportCtx.setTransform(
+        1 / displayT.scale, 0,
+        0, 1 / displayT.scale,
+        -displayT.ox / displayT.scale,
+        -displayT.oy / displayT.scale
+      );
+      render();
+      exportCtx.restore();
+      ctx = displayCtx;
+
+      updateVcTime();
+      const elapsed = S.videoEl.currentTime - exportStart;
+      progressBar.style.width = Math.min(100, (elapsed / exportDuration) * 100).toFixed(1) + '%';
+      progressLabel.textContent = fmtTime(elapsed) + ' / ' + fmtTime(exportDuration);
+      if (S.videoEl.currentTime >= exportEnd || S.videoEl.ended) {
+        S.videoEl.pause();
+        resolve();
+      } else {
+        requestAnimationFrame(onTimeUpdate);
+      }
+    }
+    requestAnimationFrame(onTimeUpdate);
+  });
+
+  recorder.stop();
+  await new Promise(r => recorder.addEventListener('stop', r, { once: true }));
+
+  progressOverlay.classList.remove('visible');
+  render();
+  updateVcTime();
+  updatePlayBtn();
+
+  // ── Save ──────────────────────────────────────────────────────────────────
+  const blob = new Blob(chunks, { type: mimeType });
+
+  if (fileHandle) {
+    try {
+      const writable = await fileHandle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+    } catch (err) {
+      console.error('Video save failed:', err);
+    }
+  } else {
+    const link = document.createElement('a');
+    link.download = suggestedName;
+    link.href = URL.createObjectURL(blob);
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(link.href), 10000);
+  }
+}
 
 // ── Properties panel events ───────────────────────────────────────────────
 
@@ -1245,6 +1808,34 @@ document.getElementById('prop-color').addEventListener('change', () => {
 document.getElementById('btn-size-down').addEventListener('click', () => changeSize(-2));
 document.getElementById('btn-size-up').addEventListener('click',   () => changeSize(+2));
 
+document.getElementById('btn-set-end').addEventListener('click', setEndHere);
+document.getElementById('btn-clear-end').addEventListener('click', () => {
+  if (S.selected === null) return;
+  pushHistory();
+  delete S.annotations[S.selected].timeEnd;
+  refreshProps();
+});
+
+function setEndHere() {
+  if (S.selected === null || !S.isVideo) return;
+  pushHistory();
+  S.annotations[S.selected].timeEnd = S.videoEl.currentTime;
+  refreshProps();
+}
+
+document.getElementById('btn-del-kf').addEventListener('click', () => {
+  if (S.selected === null || !S.isVideo) return;
+  const a = S.annotations[S.selected];
+  if (!a.keyframes || a.keyframes.length <= 1) return;
+  const t   = S.videoEl.currentTime;
+  const idx = a.keyframes.reduce((best, kf, i) =>
+    Math.abs(kf.time - t) < Math.abs(a.keyframes[best].time - t) ? i : best, 0);
+  pushHistory();
+  a.keyframes.splice(idx, 1);
+  refreshProps();
+  render();
+});
+
 function changeSize(delta) {
   if (S.selected === null) return;
   const a = S.annotations[S.selected];
@@ -1266,7 +1857,8 @@ function refreshButtons() {
   document.getElementById('btn-redo').disabled   = !S.future.length;
   document.getElementById('btn-delete').disabled = !hasSel;
   document.getElementById('btn-clear').disabled  = !hasAnnos;
-  document.getElementById('btn-export').disabled = !hasImage;
+  document.getElementById('btn-export').disabled       = !hasImage && !S.isVideo;
+  document.getElementById('btn-export-video').disabled = !S.isVideo;
   refreshProps();
 }
 
@@ -1296,6 +1888,30 @@ function refreshProps() {
   if (isText) {
     document.getElementById('size-display').textContent = a.fontSize || 16;
   }
+
+  // Time range controls (video only)
+  const showTime = S.isVideo && a.timeStart != null;
+  document.getElementById('time-range-sep').style.display     = showTime ? '' : 'none';
+  document.getElementById('time-range-label').style.display   = showTime ? '' : 'none';
+  document.getElementById('time-range-display').style.display = showTime ? '' : 'none';
+  document.getElementById('btn-set-end').style.display        = showTime ? '' : 'none';
+  document.getElementById('btn-clear-end').style.display      = (showTime && a.timeEnd != null) ? '' : 'none';
+
+  if (showTime) {
+    const from = fmtTime(a.timeStart);
+    const to   = a.timeEnd != null ? fmtTime(a.timeEnd) : '∞';
+    document.getElementById('time-range-display').textContent = `${from} – ${to}`;
+  }
+
+  // Keyframe controls (video angle annotations only)
+  const hasKf = showTime && a.type === 'angle' && a.keyframes && a.keyframes.length > 0;
+  document.getElementById('kf-sep').style.display     = hasKf ? '' : 'none';
+  document.getElementById('kf-display').style.display = hasKf ? '' : 'none';
+  document.getElementById('btn-del-kf').style.display = hasKf && a.keyframes.length > 1 ? '' : 'none';
+  if (hasKf) {
+    document.getElementById('kf-display').textContent =
+      `${a.keyframes.length} keyframe${a.keyframes.length !== 1 ? 's' : ''}`;
+  }
 }
 
 /** Ensure a color string is a valid 6-digit hex (color inputs require #rrggbb) */
@@ -1323,8 +1939,8 @@ function updateStatus() {
   const hint = document.getElementById('status-hint');
   const info = document.getElementById('status-info');
 
-  if (!S.imageEl) {
-    hint.textContent = 'Load an image to get started';
+  if (!S.imageEl && !S.isVideo) {
+    hint.textContent = 'Load an image or video to get started';
     info.textContent = '';
     return;
   }
